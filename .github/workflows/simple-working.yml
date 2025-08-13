@@ -171,9 +171,18 @@ jobs:
         git add merged-blocklist.txt merged-blocklist.txt.gz *.txt stats.json
         
         if ! git diff --staged --quiet; then
-          git commit -m "🤖 Auto-update $(date -u '+%Y-%m-%d %H:%M UTC')"
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
+          git commit -m "🤖 Update $TIMESTAMP"
           git push
-          echo "Pushed changes"
+          echo "✅ Fichiers mis à jour et sauvegardés dans le dépôt privé"
+          
+          # Afficher les statistiques dans les logs (privés)
+          echo "📊 Statistiques de mise à jour:"
+          echo "   - Règles de blocage: $(jq -r '.ruleLines' stats.json)"
+          echo "   - Taille du fichier: $(jq -r '.fileSize' stats.json)"
+          echo "   - Version compressée: $(jq -r '.compressedSize' stats.json)"
+          echo "   - Sources traitées: $(jq -r '.sources' stats.json)/32"
+          echo "   - Ratio de compression: $(jq -r '.compressionRatio' stats.json)"
         else
-          echo "No changes"
+          echo "ℹ️ Aucun changement détecté"
         fi
