@@ -27,9 +27,11 @@ jobs:
     
     - name: Install AdGuard Blocklist Merger
       run: |
-        # Clone et build le projet
-        git clone https://github.com/morgannito/adguard-blocklist-merger.git /tmp/adguard-merger
-        cd /tmp/adguard-merger
+        # Télécharger et installer depuis les sources
+        curl -L https://github.com/morgannito/adguard-blocklist-merger/archive/main.zip -o /tmp/adguard-merger.zip
+        cd /tmp
+        unzip adguard-merger.zip
+        cd adguard-blocklist-merger-main
         npm install
         npm run build
         npm link
