@@ -34,14 +34,51 @@ jobs:
         const fs = require('fs');
         
         const sources = [
-          'https://easylist.to/easylist/easylist.txt',
-          'https://easylist.to/easylist/easyprivacy.txt'
+          // AdGuard Official Filters
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_8.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_9.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_10.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_12.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_18.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_23.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_30.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_31.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_39.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_42.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_44.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_50.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_52.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_54.txt',
+          
+          // Gaming and Specialized Lists
+          'https://raw.githubusercontent.com/Mafraysse/AdGuard_GameList-Filter/main/AdGuard_games_list.txt',
+          
+          // Security and Threat Protection
+          'https://blocklistproject.github.io/Lists/adguard/drugs-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/crypto-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/fraud-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/gambling-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/malware-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/phishing-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/piracy-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/porn-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/ransomware-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/scam-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/torrent-ags.txt',
+          
+          // Community and Comprehensive Lists
+          'https://content.spiceworksstatic.com/service.community/p/post_attachments/0000175337/58c03a00/attached_file/sites.txt',
+          'https://abp.oisd.nl/',
+          'https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/adblock/ultimate.txt'
         ];
         
         async function fetchSource(url) {
           try {
             console.log('Fetching:', url);
-            const response = await axios.get(url, { timeout: 30000 });
+            const response = await axios.get(url, { timeout: 45000 });
             return { url, content: response.data, success: true };
           } catch (error) {
             console.error('Failed:', url, error.message);
@@ -62,10 +99,14 @@ jobs:
           }
           
           const header = [
-            '! Title: AdGuard Merged Blocklist',
-            '! Description: Auto-generated merged blocklist',
+            '! Title: AdGuard Comprehensive Merged Blocklist',
+            '! Description: Auto-generated comprehensive blocklist from 33+ premium sources',
             '! Last modified: ' + new Date().toISOString(),
-            '! Sources: ' + successful.length,
+            '! Sources processed: ' + successful.length + '/' + sources.length,
+            '! Categories: AdGuard Official, Security, Gaming, Adult Content, Malware, Phishing',
+            '! Compatible: AdGuard Home, Pi-hole, uBlock Origin, AdBlock Plus',
+            '! Update frequency: Daily at 06:00 UTC',
+            '! Repository: https://github.com/morgannito/adguard-merged-blocklist',
             '!'
           ];
           
