@@ -1,0 +1,217 @@
+name: Simple Blocklist Update
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Quotidien à 06:00 UTC
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  update-blocklist:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        npm install axios
+    
+    - name: Generate merged blocklist
+      run: |
+        cat > merge-blocklists.js << 'EOF'
+        const axios = require('axios');
+        const fs = require('fs');
+        
+        const SOURCES = [
+          'https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adware.txt',
+          'https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/antiadblock.txt',
+          'https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_elemhide.txt',
+          'https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_extensions.txt',
+          'https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_url.txt',
+          'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
+          'https://someonewhocares.org/hosts/zero/hosts',
+          'https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/adware.txt',
+          'https://easylist.to/easylist/easylist.txt',
+          'https://easylist.to/easylist/easyprivacy.txt'
+        ];
+        
+        async function fetchSource(url) {
+          try {
+            console.log(`Fetching: ${url}`);
+            const response = await axios.get(url, { timeout: 30000 });
+            return { url, content: response.data, success: true };
+          } catch (error) {
+            console.error(`Failed to fetch ${url}:`, error.message);
+            return { url, content: '', success: false, error: error.message };
+          }
+        }
+        
+        async function main() {
+          console.log('🚀 Starting blocklist merge...');
+          
+          // Fetch all sources
+          const results = await Promise.all(SOURCES.map(fetchSource));
+          
+          // Count successes and failures
+          const successful = results.filter(r => r.success);
+          const failed = results.filter(r => !r.success);
+          
+          console.log(`✅ Successful fetches: ${successful.length}`);
+          console.log(`❌ Failed fetches: ${failed.length}`);
+          
+          if (successful.length === 0) {
+            throw new Error('No sources could be fetched');
+          }
+          
+          // Merge content
+          let allLines = [];
+          let totalRawEntries = 0;
+          
+          // Add header
+          const timestamp = new Date().toISOString();
+          const header = [
+            '! Title: AdGuard Merged Blocklist',
+            '! Description: Liste de blocage AdGuard fusionnée automatiquement depuis plusieurs sources',
+            `! Last modified: ${timestamp}`,
+            '! Expires: 1 day',
+            '! Homepage: https://github.com/morgannito/adguard-merged-blocklist',
+            '! Generator: Simple Blocklist Merger',
+            '!',
+            `! Sources processed: ${successful.length}/${SOURCES.length}`,
+            `! Generated: ${new Date().toLocaleString('fr-FR', { timeZone: 'UTC' })} UTC`,
+            '!',
+            '! ========================================'
+          ];
+          
+          allLines.push(...header);
+          
+          // Process each successful source
+          for (const result of successful) {
+            allLines.push('');
+            allLines.push(`! Source: ${result.url}`);
+            
+            const lines = result.content.split('\n')
+              .map(line => line.trim())
+              .filter(line => line.length > 0);
+            
+            totalRawEntries += lines.length;
+            allLines.push(...lines);
+          }
+          
+          // Remove duplicates while preserving order
+          const uniqueLines = [];
+          const seen = new Set();
+          
+          for (const line of allLines) {
+            if (!seen.has(line)) {
+              seen.add(line);
+              uniqueLines.push(line);
+            }
+          }
+          
+          const duplicatesRemoved = allLines.length - uniqueLines.length;
+          const finalContent = uniqueLines.join('\n') + '\n';
+          
+          // Count final rules (non-comment, non-empty lines)
+          const ruleLines = uniqueLines.filter(line => 
+            line.trim() && !line.trim().startsWith('!')
+          ).length;
+          
+          // Write merged file
+          fs.writeFileSync('merged-blocklist.txt', finalContent);
+          
+          // Generate statistics
+          const stats = {
+            lastUpdate: timestamp,
+            totalLines: uniqueLines.length,
+            ruleLines: ruleLines,
+            commentLines: uniqueLines.length - ruleLines,
+            fileSize: Math.round(finalContent.length / 1024) + 'KB',
+            sources: successful.length,
+            totalSources: SOURCES.length,
+            duplicatesRemoved: duplicatesRemoved,
+            totalRawEntries: totalRawEntries
+          };
+          
+          fs.writeFileSync('stats.json', JSON.stringify(stats, null, 2));
+          
+          console.log('📊 Statistics:');
+          console.log(`   - Total lines: ${stats.totalLines}`);
+          console.log(`   - Rule lines: ${stats.ruleLines}`);
+          console.log(`   - File size: ${stats.fileSize}`);
+          console.log(`   - Duplicates removed: ${stats.duplicatesRemoved}`);
+          console.log(`   - Sources: ${stats.sources}/${stats.totalSources}`);
+          
+          console.log('✅ Merge completed successfully!');
+        }
+        
+        main().catch(error => {
+          console.error('❌ Error:', error.message);
+          process.exit(1);
+        });
+        EOF
+        
+        node merge-blocklists.js
+    
+    - name: Update README with stats
+      run: |
+        if [ -f "stats.json" ]; then
+          LAST_UPDATE=$(jq -r '.lastUpdate' stats.json)
+          RULE_LINES=$(jq -r '.ruleLines' stats.json)
+          FILE_SIZE=$(jq -r '.fileSize' stats.json)
+          SOURCES=$(jq -r '.sources' stats.json)
+          TOTAL_SOURCES=$(jq -r '.totalSources' stats.json)
+          
+          # Format date
+          FORMATTED_DATE=$(date -d "$LAST_UPDATE" "+%d/%m/%Y à %H:%M UTC" 2>/dev/null || echo "$LAST_UPDATE")
+          
+          echo "📊 Mise à jour des statistiques dans le README..."
+          echo "   - Dernière mise à jour: $FORMATTED_DATE"
+          echo "   - Règles: $RULE_LINES"
+          echo "   - Taille: $FILE_SIZE"
+          echo "   - Sources: $SOURCES/$TOTAL_SOURCES"
+        fi
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action Bot"
+        
+        git add merged-blocklist.txt stats.json
+        
+        if git diff --staged --quiet; then
+          echo "ℹ️ Aucun changement détecté"
+        else
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          RULE_COUNT=$(jq -r '.ruleLines' stats.json 2>/dev/null || echo 'N/A')
+          FILE_SIZE=$(jq -r '.fileSize' stats.json 2>/dev/null || echo 'N/A')
+          SOURCES=$(jq -r '.sources' stats.json 2>/dev/null || echo 'N/A')
+          
+          git commit -m "🤖 Mise à jour automatique - $TIMESTAMP
+
+📊 Statistiques:
+- Règles de blocage: $RULE_COUNT
+- Taille du fichier: $FILE_SIZE  
+- Sources traitées: $SOURCES/10
+
+🔄 Mise à jour automatique quotidienne"
+          
+          git push origin main
+          echo "✅ Changements poussés vers GitHub"
+        fi
+    
+    - name: Cleanup
+      if: always()
+      run: |
+        rm -f merge-blocklists.js
+        echo "🧹 Nettoyage terminé"
