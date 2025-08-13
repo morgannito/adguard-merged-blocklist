@@ -2,7 +2,7 @@
 
 ## 📋 Fichiers Générés Automatiquement
 
-Votre dépôt privé génère automatiquement ces fichiers chaque jour :
+Votre dépôt privé génère automatiquement ces fichiers toutes les heures :
 
 ### 📁 Fichiers Disponibles
 - `merged-blocklist.txt` - Liste complète (2.3M+ règles, ~53MB)
@@ -56,7 +56,7 @@ python3 -m http.server 8080
 ### Serveur Local
 1. Lancez un serveur HTTP local (voir Option 3)
 2. URL : `http://localhost:8080/merged-blocklist.txt`
-3. Intervalle de mise à jour : **24 heures**
+3. Intervalle de mise à jour : **1 heure**
 
 ## 📊 Monitoring Privé
 
@@ -74,8 +74,8 @@ ls -lh *.txt *.gz
 
 ### Automatiser les Vérifications
 ```bash
-# Crontab pour synchronisation quotidienne
-0 7 * * * cd /path/to/adguard-merged-blocklist && git pull && cp merged-blocklist.txt /etc/adguard/
+# Crontab pour synchronisation horaire
+0 * * * * cd /path/to/adguard-merged-blocklist && git pull && cp merged-blocklist.txt /etc/adguard/
 ```
 
 ## 🔐 Sécurité et Confidentialité
@@ -114,11 +114,13 @@ Le workflow génère automatiquement des statistiques dans `stats.json` :
 ## 🔄 Automatisation
 
 ### Workflow Actuel
-- **Fréquence** : Quotidienne à 06:00 UTC
+- **Fréquence** : Toutes les heures (24 mises à jour par jour)
 - **Sources** : 32 listes premium
 - **Déduplication** : Automatique
 - **Compression** : GZIP (72% de réduction)
 - **Catégorisation** : Fichiers séparés par type
+
+> ⚡ **Mise à jour fréquente** : Avec 24 mises à jour par jour, vous bénéficiez de la protection la plus récente possible. Le système ne met à jour que si des changements sont détectés.
 
 ### Déclenchement Manuel
 ```bash
@@ -151,10 +153,10 @@ schedule:
 
 ### Pour Performance
 - Utilisez la version compressée si votre système le supporte
-- Synchronisez une fois par jour maximum
+- Synchronisez toutes les heures pour les dernières mises à jour
 - Surveillez l'utilisation mémoire avec 2.3M règles
 
 ---
 
 **🔒 Votre système de blocage privé et automatisé est opérationnel !**  
-**📊 2.3 millions de règles mises à jour quotidiennement en toute confidentialité**
+**📊 2.3 millions de règles mises à jour toutes les heures en toute confidentialité**
