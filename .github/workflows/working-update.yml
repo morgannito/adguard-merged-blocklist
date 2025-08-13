@@ -1,0 +1,133 @@
+name: Working Blocklist Update
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  update-blocklist:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install axios
+    
+    - name: Create merge script
+      run: |
+        cat > merge.js << 'SCRIPT_END'
+        const axios = require('axios');
+        const fs = require('fs');
+        
+        const sources = [
+          'https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adware.txt',
+          'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
+          'https://easylist.to/easylist/easylist.txt'
+        ];
+        
+        async function fetchSource(url) {
+          try {
+            console.log('Fetching:', url);
+            const response = await axios.get(url, { timeout: 30000 });
+            return { url, content: response.data, success: true };
+          } catch (error) {
+            console.error('Failed:', url, error.message);
+            return { url, content: '', success: false };
+          }
+        }
+        
+        async function main() {
+          console.log('Starting merge...');
+          
+          const results = await Promise.all(sources.map(fetchSource));
+          const successful = results.filter(r => r.success);
+          
+          console.log('Successful:', successful.length, 'Failed:', results.length - successful.length);
+          
+          if (successful.length === 0) {
+            throw new Error('No sources available');
+          }
+          
+          const header = [
+            '! Title: AdGuard Merged Blocklist',
+            '! Description: Auto-generated merged blocklist',
+            '! Last modified: ' + new Date().toISOString(),
+            '! Sources: ' + successful.length,
+            '!'
+          ];
+          
+          let allLines = [...header];
+          let totalEntries = 0;
+          
+          for (const result of successful) {
+            const lines = result.content.split('\n')
+              .map(line => line.trim())
+              .filter(line => line.length > 0);
+            
+            totalEntries += lines.length;
+            allLines.push('');
+            allLines.push('! Source: ' + result.url);
+            allLines.push(...lines);
+          }
+          
+          // Remove duplicates
+          const unique = [...new Set(allLines)];
+          const content = unique.join('\n') + '\n';
+          
+          fs.writeFileSync('merged-blocklist.txt', content);
+          
+          const stats = {
+            lastUpdate: new Date().toISOString(),
+            totalLines: unique.length,
+            ruleLines: unique.filter(l => l && !l.startsWith('!')).length,
+            fileSize: Math.round(content.length / 1024) + 'KB',
+            sources: successful.length,
+            duplicatesRemoved: allLines.length - unique.length
+          };
+          
+          fs.writeFileSync('stats.json', JSON.stringify(stats, null, 2));
+          
+          console.log('Stats:', JSON.stringify(stats, null, 2));
+          console.log('Merge completed!');
+        }
+        
+        main().catch(error => {
+          console.error('Error:', error);
+          process.exit(1);
+        });
+        SCRIPT_END
+    
+    - name: Run merge script
+      run: node merge.js
+    
+    - name: Commit changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add merged-blocklist.txt stats.json
+        
+        if ! git diff --staged --quiet; then
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          git commit -m "🤖 Auto-update $TIMESTAMP"
+          git push origin main
+          echo "Changes pushed"
+        else
+          echo "No changes"
+        fi
+    
+    - name: Cleanup
+      if: always()
+      run: rm -f merge.js
