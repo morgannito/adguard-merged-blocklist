@@ -1,6 +1,6 @@
 ! Title: AdGuard Merged Blocklist
 ! Description: Auto-generated merged blocklist
-! Last modified: 2025-08-13T03:46:23.597Z
+! Last modified: 2025-08-13T03:50:58.829Z
 ! Sources: 2
 !
 
