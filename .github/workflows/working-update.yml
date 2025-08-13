@@ -70,7 +70,6 @@ jobs:
           'https://blocklistproject.github.io/Lists/adguard/torrent-ags.txt',
           
           // Community and Comprehensive Lists
-          'https://content.spiceworksstatic.com/service.community/p/post_attachments/0000175337/58c03a00/attached_file/sites.txt',
           'https://abp.oisd.nl/',
           'https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/adblock/ultimate.txt'
         ];
@@ -124,15 +123,24 @@ jobs:
             allLines.push(...lines);
           }
           
-          // Remove duplicates efficiently
-          const seen = new Map();
+          // Remove duplicates efficiently for large datasets
+          console.log('Deduplicating', allLines.length, 'lines...');
+          const seen = new Set();
           const unique = [];
+          let processed = 0;
+          
           for (const line of allLines) {
             if (!seen.has(line)) {
-              seen.set(line, true);
+              seen.add(line);
               unique.push(line);
             }
+            processed++;
+            if (processed % 100000 === 0) {
+              console.log('Processed', processed, 'lines, unique:', unique.length);
+            }
           }
+          
+          console.log('Deduplication complete:', unique.length, 'unique lines');
           const content = unique.join('\n') + '\n';
           
           fs.writeFileSync('merged-blocklist.txt', content);
