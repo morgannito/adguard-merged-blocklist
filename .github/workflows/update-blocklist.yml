@@ -25,13 +25,15 @@ jobs:
         node-version: '18'
         registry-url: 'https://registry.npmjs.org'
     
-    - name: Install AdGuard Blocklist Merger
+    - name: Checkout AdGuard Blocklist Merger
+      uses: actions/checkout@v4
+      with:
+        repository: morgannito/adguard-blocklist-merger
+        path: adguard-merger
+    
+    - name: Install and Build AdGuard Blocklist Merger
       run: |
-        # Télécharger et installer depuis les sources
-        curl -L https://github.com/morgannito/adguard-blocklist-merger/archive/main.zip -o /tmp/adguard-merger.zip
-        cd /tmp
-        unzip adguard-merger.zip
-        cd adguard-blocklist-merger-main
+        cd adguard-merger
         npm install
         npm run build
         npm link
