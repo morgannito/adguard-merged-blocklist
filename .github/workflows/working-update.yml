@@ -123,25 +123,39 @@ jobs:
             allLines.push(...lines);
           }
           
-          // Remove duplicates efficiently for large datasets
-          console.log('Deduplicating', allLines.length, 'lines...');
-          const seen = new Set();
-          const unique = [];
-          let processed = 0;
+          // Process in chunks to avoid memory issues
+          console.log('Processing', allLines.length, 'total lines...');
           
-          for (const line of allLines) {
-            if (!seen.has(line)) {
-              seen.add(line);
-              unique.push(line);
+          // Split into chunks and process
+          const chunkSize = 50000;
+          const seen = new Set();
+          let unique = [];
+          
+          for (let i = 0; i < allLines.length; i += chunkSize) {
+            const chunk = allLines.slice(i, i + chunkSize);
+            console.log('Processing chunk', Math.floor(i/chunkSize) + 1, 'of', Math.ceil(allLines.length/chunkSize));
+            
+            for (const line of chunk) {
+              if (!seen.has(line)) {
+                seen.add(line);
+                unique.push(line);
+              }
             }
-            processed++;
-            if (processed % 100000 === 0) {
-              console.log('Processed', processed, 'lines, unique:', unique.length);
-            }
+            
+            console.log('Chunk processed. Unique so far:', unique.length);
           }
           
-          console.log('Deduplication complete:', unique.length, 'unique lines');
-          const content = unique.join('\n') + '\n';
+          console.log('Final deduplication complete:', unique.length, 'unique lines');
+          
+          // Join in chunks to avoid stack overflow
+          let content = '';
+          const joinChunkSize = 10000;
+          for (let i = 0; i < unique.length; i += joinChunkSize) {
+            const chunk = unique.slice(i, i + joinChunkSize);
+            content += chunk.join('\n');
+            if (i + joinChunkSize < unique.length) content += '\n';
+          }
+          content += '\n';
           
           fs.writeFileSync('merged-blocklist.txt', content);
           
