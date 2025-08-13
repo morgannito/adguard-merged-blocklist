@@ -1,0 +1,237 @@
+name: Memory Optimized Blocklist Update
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  update-blocklist:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install axios
+    
+    - name: Create optimized merge script
+      run: |
+        cat > optimized-merge.js << 'SCRIPT_END'
+        const axios = require('axios');
+        const fs = require('fs');
+        
+        const sources = [
+          // AdGuard Official Filters (reduced set for stability)
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_8.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_9.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_10.txt',
+          
+          // Security Lists (high priority)
+          'https://blocklistproject.github.io/Lists/adguard/malware-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/phishing-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/ransomware-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/fraud-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/scam-ags.txt',
+          
+          // Content Filtering
+          'https://blocklistproject.github.io/Lists/adguard/gambling-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/porn-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/drugs-ags.txt',
+          
+          // Gaming and Specialized
+          'https://raw.githubusercontent.com/Mafraysse/AdGuard_GameList-Filter/main/AdGuard_games_list.txt',
+          
+          // Comprehensive Lists
+          'https://abp.oisd.nl/',
+          'https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/adblock/ultimate.txt'
+        ];
+        
+        async function fetchSource(url) {
+          try {
+            console.log('Fetching:', url);
+            const response = await axios.get(url, { timeout: 60000 });
+            return { url, content: response.data, success: true };
+          } catch (error) {
+            console.error('Failed:', url, error.message);
+            return { url, content: '', success: false };
+          }
+        }
+        
+        async function main() {
+          console.log('Starting optimized merge with', sources.length, 'sources...');
+          
+          // Fetch all sources
+          const results = await Promise.all(sources.map(fetchSource));
+          const successful = results.filter(r => r.success);
+          
+          console.log('Fetch complete:', successful.length, 'successful,', results.length - successful.length, 'failed');
+          
+          if (successful.length === 0) {
+            throw new Error('No sources available');
+          }
+          
+          // Create output file directly to avoid memory issues
+          const outputFile = 'merged-blocklist.txt';
+          let writeStream = fs.createWriteStream(outputFile);
+          
+          // Write header
+          const timestamp = new Date().toISOString();
+          const header = [
+            '! Title: AdGuard Comprehensive Merged Blocklist',
+            '! Description: Memory-optimized comprehensive blocklist from premium sources',
+            '! Last modified: ' + timestamp,
+            '! Sources processed: ' + successful.length + '/' + sources.length,
+            '! Categories: AdGuard Official, Security, Gaming, Adult Content, Malware',
+            '! Compatible: AdGuard Home, Pi-hole, uBlock Origin, AdBlock Plus',
+            '! Update frequency: Daily at 06:00 UTC',
+            '! Repository: https://github.com/morgannito/adguard-merged-blocklist',
+            '!',
+            ''
+          ];
+          
+          for (const line of header) {
+            writeStream.write(line + '\n');
+          }
+          
+          // Process sources one by one with deduplication
+          const seen = new Set();
+          let totalRawEntries = 0;
+          let finalEntryCount = 0;
+          let duplicatesRemoved = 0;
+          
+          // Add header lines to seen set
+          for (const line of header) {
+            seen.add(line);
+          }
+          
+          for (let i = 0; i < successful.length; i++) {
+            const result = successful[i];
+            console.log(`Processing source ${i + 1}/${successful.length}: ${result.url.substring(0, 50)}...`);
+            
+            // Write source separator
+            const separator = [``, `! Source: ${result.url}`];
+            for (const line of separator) {
+              if (!seen.has(line)) {
+                seen.add(line);
+                writeStream.write(line + '\n');
+                finalEntryCount++;
+              }
+            }
+            
+            // Process content line by line
+            const lines = result.content.split('\n');
+            let sourceProcessed = 0;
+            let sourceUnique = 0;
+            
+            for (const rawLine of lines) {
+              const line = rawLine.trim();
+              if (line.length > 0) {
+                totalRawEntries++;
+                sourceProcessed++;
+                
+                if (!seen.has(line)) {
+                  seen.add(line);
+                  writeStream.write(line + '\n');
+                  finalEntryCount++;
+                  sourceUnique++;
+                } else {
+                  duplicatesRemoved++;
+                }
+              }
+              
+              // Progress update every 10k lines
+              if (sourceProcessed % 10000 === 0 && sourceProcessed > 0) {
+                console.log(`  Processed ${sourceProcessed} lines, ${sourceUnique} unique from this source`);
+              }
+            }
+            
+            console.log(`Source ${i + 1} complete: ${sourceProcessed} processed, ${sourceUnique} unique`);
+          }
+          
+          writeStream.end();
+          
+          // Generate statistics
+          const stats = {
+            lastUpdate: timestamp,
+            totalLines: finalEntryCount,
+            ruleLines: finalEntryCount - header.length - (successful.length * 2), // Approximate
+            fileSize: Math.round(fs.statSync(outputFile).size / 1024) + 'KB',
+            sources: successful.length,
+            totalSources: sources.length,
+            duplicatesRemoved: duplicatesRemoved,
+            totalRawEntries: totalRawEntries
+          };
+          
+          fs.writeFileSync('stats.json', JSON.stringify(stats, null, 2));
+          
+          console.log('=== MERGE COMPLETE ===');
+          console.log('Total raw entries:', totalRawEntries.toLocaleString());
+          console.log('Final unique entries:', finalEntryCount.toLocaleString());
+          console.log('Duplicates removed:', duplicatesRemoved.toLocaleString());
+          console.log('File size:', stats.fileSize);
+          console.log('Sources processed:', stats.sources + '/' + stats.totalSources);
+          console.log('======================');
+        }
+        
+        main().catch(error => {
+          console.error('Error:', error);
+          process.exit(1);
+        });
+        SCRIPT_END
+    
+    - name: Run optimized merge
+      run: node optimized-merge.js
+    
+    - name: Commit changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action Bot"
+        
+        git add merged-blocklist.txt stats.json
+        
+        if ! git diff --staged --quiet; then
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          RULE_COUNT=$(jq -r '.ruleLines' stats.json 2>/dev/null || echo 'N/A')
+          FILE_SIZE=$(jq -r '.fileSize' stats.json 2>/dev/null || echo 'N/A')
+          SOURCES=$(jq -r '.sources' stats.json 2>/dev/null || echo 'N/A')
+          TOTAL_SOURCES=$(jq -r '.totalSources' stats.json 2>/dev/null || echo 'N/A')
+          
+          git commit -m "🤖 Comprehensive update - $TIMESTAMP
+
+📊 Statistics:
+- Rules: $RULE_COUNT
+- File size: $FILE_SIZE  
+- Sources: $SOURCES/$TOTAL_SOURCES
+- Categories: Security, Gaming, Adult Content, Malware
+
+🛡️ Protection includes:
+- AdGuard Official Filters
+- Malware & Phishing protection
+- Ransomware & Fraud blocking
+- Adult content filtering
+- Gaming-specific rules"
+          
+          git push origin main
+          echo "✅ Changes committed and pushed"
+        else
+          echo "ℹ️ No changes detected"
+        fi
+    
+    - name: Cleanup
+      if: always()
+      run: rm -f optimized-merge.js
