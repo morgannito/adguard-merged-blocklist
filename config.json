@@ -1,0 +1,22 @@
+{
+  "urls": [
+    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adware.txt",
+    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/antiadblock.txt",
+    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_elemhide.txt",
+    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_extensions.txt",
+    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_url.txt",
+    "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
+    "https://someonewhocares.org/hosts/zero/hosts",
+    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/adware.txt",
+    "https://easylist.to/easylist/easylist.txt",
+    "https://easylist.to/easylist/easyprivacy.txt"
+  ],
+  "outputFile": "merged-blocklist.txt",
+  "logLevel": "info",
+  "timeout": 60000,
+  "retries": 3,
+  "branch": "main",
+  "commitMessage": "🤖 Mise à jour automatique de la liste de blocage - {{timestamp}}",
+  "automationMode": true,
+  "skipUnchanged": false
+}

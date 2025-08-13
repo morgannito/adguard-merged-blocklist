@@ -1,0 +1,222 @@
+name: Update AdGuard Blocklist
+
+on:
+  schedule:
+    # Exécute tous les jours à 06:00 UTC (08:00 heure de Paris en hiver, 07:00 en été)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Permet de déclencher manuellement
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/update-blocklist.yml'
+      - 'config.json'
+
+jobs:
+  update-blocklist:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Install AdGuard Blocklist Merger
+      run: |
+        npm install -g https://github.com/morgannito/adguard-blocklist-merger.git
+    
+    - name: Generate merged blocklist
+      run: |
+        echo "🚀 Génération de la liste de blocage fusionnée..."
+        
+        # Créer le fichier de configuration
+        cat > temp-config.json << 'EOF'
+        {
+          "urls": [
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adware.txt",
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/antiadblock.txt",
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_elemhide.txt",
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_extensions.txt",
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_url.txt",
+            "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
+            "https://someonewhocares.org/hosts/zero/hosts",
+            "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/adware.txt",
+            "https://easylist.to/easylist/easylist.txt",
+            "https://easylist.to/easylist/easyprivacy.txt"
+          ],
+          "githubRepo": "${{ github.repository }}",
+          "githubToken": "${{ secrets.GITHUB_TOKEN }}",
+          "outputFile": "merged-blocklist.txt",
+          "logLevel": "info",
+          "timeout": 60000,
+          "retries": 3,
+          "branch": "main",
+          "commitMessage": "🤖 Mise à jour automatique de la liste de blocage - {{timestamp}}",
+          "automationMode": true,
+          "skipUnchanged": false
+        }
+        EOF
+        
+        # Exécuter le merger
+        adguard-merger --config temp-config.json --automation
+        
+        # Nettoyer le fichier de config temporaire
+        rm temp-config.json
+    
+    - name: Generate statistics
+      run: |
+        echo "📊 Génération des statistiques..."
+        
+        if [ -f "merged-blocklist.txt" ]; then
+          # Compter les lignes
+          TOTAL_LINES=$(wc -l < merged-blocklist.txt)
+          RULE_LINES=$(grep -v '^[[:space:]]*$' merged-blocklist.txt | grep -v '^[[:space:]]*!' | wc -l)
+          COMMENT_LINES=$(grep '^[[:space:]]*!' merged-blocklist.txt | wc -l)
+          FILE_SIZE=$(du -h merged-blocklist.txt | cut -f1)
+          
+          # Créer le fichier de statistiques
+          cat > stats.json << EOF
+        {
+          "lastUpdate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+          "totalLines": $TOTAL_LINES,
+          "ruleLines": $RULE_LINES,
+          "commentLines": $COMMENT_LINES,
+          "fileSize": "$FILE_SIZE",
+          "sources": 10
+        }
+        EOF
+          
+          echo "✅ Statistiques générées:"
+          echo "   - Lignes totales: $TOTAL_LINES"
+          echo "   - Règles de blocage: $RULE_LINES"
+          echo "   - Commentaires: $COMMENT_LINES"
+          echo "   - Taille du fichier: $FILE_SIZE"
+        else
+          echo "❌ Erreur: Le fichier merged-blocklist.txt n'a pas été généré"
+          exit 1
+        fi
+    
+    - name: Update README with stats
+      run: |
+        echo "📝 Mise à jour du README avec les statistiques..."
+        
+        if [ -f "stats.json" ]; then
+          # Lire les statistiques
+          LAST_UPDATE=$(jq -r '.lastUpdate' stats.json)
+          RULE_LINES=$(jq -r '.ruleLines' stats.json)
+          FILE_SIZE=$(jq -r '.fileSize' stats.json)
+          SOURCES=$(jq -r '.sources' stats.json)
+          
+          # Formater la date en français
+          FORMATTED_DATE=$(date -d "$LAST_UPDATE" "+%d/%m/%Y à %H:%M UTC" 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$LAST_UPDATE" "+%d/%m/%Y à %H:%M UTC" 2>/dev/null || echo "$LAST_UPDATE")
+          
+          # Créer un badge de statut
+          cat > status.md << EOF
+        <!-- AUTO-GENERATED STATS - DO NOT EDIT MANUALLY -->
+        ## 📊 Statistiques Actuelles
+        
+        - **📅 Dernière mise à jour** : $FORMATTED_DATE
+        - **🛡️ Règles de blocage** : $(printf "%'d" $RULE_LINES)
+        - **📦 Taille du fichier** : $FILE_SIZE
+        - **🔗 Sources traitées** : $SOURCES
+        - **✅ Statut** : Actif et mis à jour quotidiennement
+        
+        <!-- END AUTO-GENERATED STATS -->
+        EOF
+          
+          echo "✅ Statistiques formatées pour le README"
+        fi
+    
+    - name: Commit and push changes
+      run: |
+        echo "💾 Commit et push des changements..."
+        
+        # Configuration Git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Ajouter les fichiers modifiés
+        git add merged-blocklist.txt stats.json status.md
+        
+        # Vérifier s'il y a des changements
+        if git diff --staged --quiet; then
+          echo "ℹ️ Aucun changement détecté, pas de commit nécessaire"
+        else
+          # Commit avec un message détaillé
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          git commit -m "🤖 Mise à jour automatique - $TIMESTAMP
+
+        📊 Statistiques:
+        - Règles de blocage: $(jq -r '.ruleLines' stats.json 2>/dev/null || echo 'N/A')
+        - Taille: $(jq -r '.fileSize' stats.json 2>/dev/null || echo 'N/A')
+        - Sources: $(jq -r '.sources' stats.json 2>/dev/null || echo 'N/A')
+        
+        🔄 Mise à jour automatique quotidienne via GitHub Actions"
+          
+          # Push vers la branche main
+          git push origin main
+          
+          echo "✅ Changements poussés vers GitHub"
+        fi
+    
+    - name: Create release (weekly)
+      if: github.event.schedule == '0 6 * * 0' # Dimanche seulement
+      run: |
+        echo "🏷️ Création d'une release hebdomadaire..."
+        
+        # Générer un tag basé sur la date
+        TAG_NAME="v$(date +%Y.%m.%d)"
+        
+        # Créer la release
+        gh release create "$TAG_NAME" \
+          --title "📅 Release Hebdomadaire - $(date +%d/%m/%Y)" \
+          --notes "🤖 **Mise à jour automatique hebdomadaire**
+
+        📊 **Statistiques:**
+        - **Règles de blocage:** $(jq -r '.ruleLines' stats.json | xargs printf "%'d")
+        - **Taille du fichier:** $(jq -r '.fileSize' stats.json)
+        - **Sources traitées:** $(jq -r '.sources' stats.json)
+        - **Dernière mise à jour:** $(date -d "$(jq -r '.lastUpdate' stats.json)" "+%d/%m/%Y à %H:%M UTC")
+
+        🔗 **Utilisation:**
+        \`\`\`
+        https://raw.githubusercontent.com/${{ github.repository }}/main/merged-blocklist.txt
+        \`\`\`
+
+        📋 **Changements:**
+        - Mise à jour automatique de toutes les sources
+        - Déduplication et validation des règles
+        - Optimisation pour AdGuard Home et Pi-hole" \
+          merged-blocklist.txt
+        
+        echo "✅ Release créée: $TAG_NAME"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Échec de la mise à jour automatique"
+        echo "Vérifiez les logs dans l'onglet Actions de GitHub"
+        
+        # Créer un fichier d'erreur pour debugging
+        cat > error-log.txt << EOF
+        Échec de la mise à jour automatique
+        Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        Workflow: ${{ github.workflow }}
+        Run ID: ${{ github.run_id }}
+        EOF
+        
+        # Optionnel: Commit le log d'erreur pour debugging
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add error-log.txt
+        git commit -m "❌ Log d'erreur - $(date -u +"%Y-%m-%d %H:%M:%S UTC")" || true
+        git push origin main || true
