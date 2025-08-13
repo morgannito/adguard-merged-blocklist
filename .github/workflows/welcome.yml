@@ -1,0 +1,33 @@
+name: Welcome & Setup
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    if: github.run_number == 1 || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Welcome message
+      run: |
+        echo "🎉 Bienvenue dans votre dépôt AdGuard Merged Blocklist!"
+        echo ""
+        echo "✅ GitHub Actions est maintenant activé"
+        echo "✅ Le workflow de mise à jour quotidienne est configuré"
+        echo "✅ Votre dépôt est prêt à générer des listes de blocage"
+        echo ""
+        echo "🚀 Prochaines étapes:"
+        echo "1. Le workflow 'Update AdGuard Blocklist' va se déclencher automatiquement"
+        echo "2. Votre première liste sera générée dans quelques minutes"
+        echo "3. Elle sera disponible à: https://raw.githubusercontent.com/${{ github.repository }}/main/merged-blocklist.txt"
+        echo ""
+        echo "⏰ Mise à jour automatique: Tous les jours à 06:00 UTC"
+        echo "🔧 Déclenchement manuel: Onglet Actions → Update AdGuard Blocklist → Run workflow"
+        
+    - name: Trigger main workflow
+      run: |
+        echo "🔄 Déclenchement du workflow principal..."
+        # Le workflow principal se déclenchera automatiquement grâce au push trigger

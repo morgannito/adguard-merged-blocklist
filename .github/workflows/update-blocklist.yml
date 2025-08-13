@@ -7,9 +7,7 @@ on:
   workflow_dispatch: # Permet de déclencher manuellement
   push:
     branches: [ main ]
-    paths:
-      - '.github/workflows/update-blocklist.yml'
-      - 'config.json'
+    # Déclenche sur tout push pour activer automatiquement les Actions
 
 jobs:
   update-blocklist:
