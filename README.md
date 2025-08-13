@@ -10,11 +10,26 @@ Une liste de blocage AdGuard fusionnée automatiquement depuis plusieurs sources
 
 ## 🚀 Utilisation Rapide
 
-### AdGuard Home
-Ajoutez cette URL dans vos listes de blocage DNS :
+### 📋 Options de Téléchargement
+
+#### Version Complète (2.3M règles - 53MB)
 ```
 https://raw.githubusercontent.com/morgannito/adguard-merged-blocklist/main/merged-blocklist.txt
 ```
+
+#### Version Compressée (53MB → ~8MB)
+```
+https://raw.githubusercontent.com/morgannito/adguard-merged-blocklist/main/merged-blocklist.txt.gz
+```
+
+#### Versions par Catégorie (Plus petites)
+- **AdGuard Officiel** : `https://raw.githubusercontent.com/morgannito/adguard-merged-blocklist/main/adguard-official.txt`
+- **Sécurité & Menaces** : `https://raw.githubusercontent.com/morgannito/adguard-merged-blocklist/main/security-threats.txt`
+- **Gaming** : `https://raw.githubusercontent.com/morgannito/adguard-merged-blocklist/main/gaming.txt`
+- **Listes Complètes** : `https://raw.githubusercontent.com/morgannito/adguard-merged-blocklist/main/comprehensive.txt`
+
+### AdGuard Home
+Ajoutez une de ces URLs dans vos listes de blocage DNS :
 
 ### Pi-hole
 ```bash

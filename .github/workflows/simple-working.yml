@@ -111,17 +111,53 @@ jobs:
           
           fs.writeFileSync('merged-blocklist.txt', output);
           
+          // Create compressed version for large file handling
+          const zlib = require('zlib');
+          const compressed = zlib.gzipSync(output);
+          fs.writeFileSync('merged-blocklist.txt.gz', compressed);
+          
           const stats = {
             lastUpdate: new Date().toISOString(),
             totalLines: total,
             ruleLines: total - 20,
             fileSize: Math.round(output.length / 1024) + 'KB',
-            sources: good.length
+            compressedSize: Math.round(compressed.length / 1024) + 'KB',
+            sources: good.length,
+            compressionRatio: Math.round((1 - compressed.length / output.length) * 100) + '%'
           };
           
           fs.writeFileSync('stats.json', JSON.stringify(stats, null, 2));
           
-          console.log('Complete! Total rules:', total, 'Size:', stats.fileSize);
+          // Create category-specific files for smaller downloads
+          const categories = {
+            'adguard-official.txt': good.filter(r => r.url.includes('HostlistsRegistry')),
+            'security-threats.txt': good.filter(r => r.url.includes('blocklistproject')),
+            'comprehensive.txt': good.filter(r => r.url.includes('oisd.nl') || r.url.includes('hagezi')),
+            'gaming.txt': good.filter(r => r.url.includes('GameList'))
+          };
+          
+          for (const [filename, sources] of Object.entries(categories)) {
+            if (sources.length > 0) {
+              let catOutput = '! ' + filename.replace('.txt', '').toUpperCase() + ' Category\\n';
+              catOutput += '! Generated: ' + new Date().toISOString() + '\\n!\\n';
+              
+              const catSeen = new Set();
+              for (const r of sources) {
+                catOutput += '\\n! Source: ' + r.url + '\\n';
+                const lines = r.content.split('\\n');
+                for (const line of lines) {
+                  const clean = line.trim();
+                  if (clean && !catSeen.has(clean)) {
+                    catSeen.add(clean);
+                    catOutput += clean + '\\n';
+                  }
+                }
+              }
+              fs.writeFileSync(filename, catOutput);
+            }
+          }
+          
+          console.log('Complete! Total rules:', total, 'Size:', stats.fileSize, 'Compressed:', stats.compressedSize);
         })().catch(e => {
           console.error('Error:', e.message);
           process.exit(1);
@@ -132,7 +168,7 @@ jobs:
       run: |
         git config user.name "GitHub Action"
         git config user.email "action@github.com"
-        git add merged-blocklist.txt stats.json
+        git add merged-blocklist.txt merged-blocklist.txt.gz *.txt stats.json
         
         if ! git diff --staged --quiet; then
           git commit -m "🤖 Auto-update $(date -u '+%Y-%m-%d %H:%M UTC')"

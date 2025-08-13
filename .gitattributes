@@ -1,0 +1,8 @@
+# Handle large blocklist files
+merged-blocklist.txt filter=lfs diff=lfs merge=lfs -text
+*.txt.gz binary
+
+# Optimize for GitHub
+*.txt linguist-generated=true
+*.json linguist-generated=true
+stats.json linguist-documentation=true
