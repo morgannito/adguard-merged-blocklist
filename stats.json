@@ -1,7 +1,9 @@
 {
-  "lastUpdate": "2025-08-13T04:17:07.396Z",
-  "totalLines": 2318851,
-  "ruleLines": 2318831,
+  "lastUpdate": "2025-08-13T04:23:20.556Z",
+  "totalLines": 2318844,
+  "ruleLines": 2318824,
   "fileSize": "53084KB",
-  "sources": 31
+  "compressedSize": "14981KB",
+  "sources": 31,
+  "compressionRatio": "72%"
 }
