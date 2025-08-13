@@ -31,17 +31,50 @@ jobs:
         const fs = require('fs');
         
         const sources = [
+          // AdGuard Official Filters
           'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt',
           'https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_8.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_9.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_10.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_12.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_18.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_23.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_30.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_31.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_39.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_42.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_44.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_50.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_52.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_54.txt',
+          
+          // Gaming Protection
+          'https://raw.githubusercontent.com/Mafraysse/AdGuard_GameList-Filter/main/AdGuard_games_list.txt',
+          
+          // Security & Threat Protection
+          'https://blocklistproject.github.io/Lists/adguard/drugs-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/crypto-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/fraud-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/gambling-ags.txt',
           'https://blocklistproject.github.io/Lists/adguard/malware-ags.txt',
           'https://blocklistproject.github.io/Lists/adguard/phishing-ags.txt',
-          'https://abp.oisd.nl/'
+          'https://blocklistproject.github.io/Lists/adguard/piracy-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/porn-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/ransomware-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/scam-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/torrent-ags.txt',
+          
+          // Comprehensive Community Lists
+          'https://abp.oisd.nl/',
+          'https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/adblock/ultimate.txt'
         ];
         
         async function fetch(url) {
           try {
             console.log('Fetching:', url);
-            const res = await axios.get(url, {timeout: 30000});
+            const res = await axios.get(url, {timeout: 60000});
             return {url, content: res.data, ok: true};
           } catch (e) {
             console.log('Failed:', url);
