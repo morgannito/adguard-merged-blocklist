@@ -1,0 +1,110 @@
+name: Simple Working Update
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - run: npm install axios
+    
+    - name: Generate blocklist
+      run: |
+        node -e "
+        const axios = require('axios');
+        const fs = require('fs');
+        
+        const sources = [
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt',
+          'https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt',
+          'https://blocklistproject.github.io/Lists/adguard/malware-ags.txt',
+          'https://blocklistproject.github.io/Lists/adguard/phishing-ags.txt',
+          'https://abp.oisd.nl/'
+        ];
+        
+        async function fetch(url) {
+          try {
+            console.log('Fetching:', url);
+            const res = await axios.get(url, {timeout: 30000});
+            return {url, content: res.data, ok: true};
+          } catch (e) {
+            console.log('Failed:', url);
+            return {url, content: '', ok: false};
+          }
+        }
+        
+        (async () => {
+          const results = await Promise.all(sources.map(fetch));
+          const good = results.filter(r => r.ok);
+          
+          console.log('Success:', good.length, 'Failed:', results.length - good.length);
+          
+          let output = '! AdGuard Comprehensive Blocklist\n';
+          output += '! Generated: ' + new Date().toISOString() + '\n';
+          output += '! Sources: ' + good.length + '\n!\n';
+          
+          const seen = new Set();
+          let total = 0;
+          
+          for (const r of good) {
+            output += '\n! Source: ' + r.url + '\n';
+            const lines = r.content.split('\n');
+            
+            for (const line of lines) {
+              const clean = line.trim();
+              if (clean && !seen.has(clean)) {
+                seen.add(clean);
+                output += clean + '\n';
+                total++;
+              }
+            }
+          }
+          
+          fs.writeFileSync('merged-blocklist.txt', output);
+          
+          const stats = {
+            lastUpdate: new Date().toISOString(),
+            totalLines: total,
+            ruleLines: total - 20,
+            fileSize: Math.round(output.length / 1024) + 'KB',
+            sources: good.length
+          };
+          
+          fs.writeFileSync('stats.json', JSON.stringify(stats, null, 2));
+          
+          console.log('Complete! Total rules:', total, 'Size:', stats.fileSize);
+        })().catch(e => {
+          console.error('Error:', e.message);
+          process.exit(1);
+        });
+        "
+    
+    - name: Commit
+      run: |
+        git config user.name "GitHub Action"
+        git config user.email "action@github.com"
+        git add merged-blocklist.txt stats.json
+        
+        if ! git diff --staged --quiet; then
+          git commit -m "🤖 Auto-update $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
+          echo "Pushed changes"
+        else
+          echo "No changes"
+        fi
