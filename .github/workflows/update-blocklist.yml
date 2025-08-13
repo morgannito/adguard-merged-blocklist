@@ -23,12 +23,16 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
         registry-url: 'https://registry.npmjs.org'
     
     - name: Install AdGuard Blocklist Merger
       run: |
-        npm install -g https://github.com/morgannito/adguard-blocklist-merger.git
+        # Clone et build le projet
+        git clone https://github.com/morgannito/adguard-blocklist-merger.git /tmp/adguard-merger
+        cd /tmp/adguard-merger
+        npm install
+        npm run build
+        npm link
     
     - name: Generate merged blocklist
       run: |
