@@ -32,9 +32,8 @@ jobs:
         const fs = require('fs');
         
         const sources = [
-          'https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adware.txt',
-          'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
-          'https://easylist.to/easylist/easylist.txt'
+          'https://easylist.to/easylist/easylist.txt',
+          'https://easylist.to/easylist/easyprivacy.txt'
         ];
         
         async function fetchSource(url) {
@@ -82,8 +81,15 @@ jobs:
             allLines.push(...lines);
           }
           
-          // Remove duplicates
-          const unique = [...new Set(allLines)];
+          // Remove duplicates efficiently
+          const seen = new Map();
+          const unique = [];
+          for (const line of allLines) {
+            if (!seen.has(line)) {
+              seen.set(line, true);
+              unique.push(line);
+            }
+          }
           const content = unique.join('\n') + '\n';
           
           fs.writeFileSync('merged-blocklist.txt', content);
