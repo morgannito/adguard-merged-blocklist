@@ -1,5 +1,5 @@
 ! GAMING Category
-! Generated: 2025-08-21T08:07:42.000Z
+! Generated: 2025-08-21T09:06:11.379Z
 !
 
 ! Source: https://raw.githubusercontent.com/Mafraysse/AdGuard_GameList-Filter/main/AdGuard_games_list.txt
